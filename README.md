@@ -8,31 +8,43 @@ In a nutshell it reads a subdomain, target ip and port from a config file and ge
 This allows apache to behave as a subdomain dependent service proxy. 
 
 ### Example
-You have homeassistant running on localhost:8123 and would like to access it using home.mydomain.com. You can use a service like cloudflare to point this subdomain to your server, but you only want to show homeassistant for this specific subdomain. 
+You have homeassistant running on raspberrypi:8123 and would like to access it using home.mydomain.com. You can use a service like cloudflare to point this subdomain to your server, but you only want to show homeassistant for this specific subdomain. 
 
 For this case you'd setup your config as 
 
 ```yaml
 defaults:
   host: mydomain.de
+  https_redirect: true
   local_http_port: 80
-homeassistant:
-  ip: localhost
+  local_https_port: 443
+  ip: 'localhost'
+  run_certbot: true
+home:
+  ip: 'raspberrypi'
   port: 8123
-
 ```
 
-and run main.py to generate /etc/apache2/sites-enabled/homeassistant.conf
+and run main.py to generate /etc/apache2/sites-enabled/ha.conf:
 
 ```conf
 <Virtualhost *:80>
-    ServerName homeassistant.mydomain.de
-    ProxyPass / http://localhost:8123/
-    ProxyPassReverse / http://localhost:8123/
+    ServerName ha.mydomain.de
 
-    <Location "/ws">
-       ProxyPass "ws://localhost:8123/ws"
-    </Location>
+    RewriteEngine On
+    RewriteCond %{SERVER_NAME} =ha.mydomain.de
+    RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]
+
+</Virtualhost>
+<Virtualhost *:443>
+    ServerName ha.mydomain.de
+    RewriteEngine On
+
+  RewriteCond %{HTTP:Upgrade} =websocket [NC]
+  RewriteRule /(.*)           ws://raspberrypi:8123/$1 [P,L]
+  RewriteCond %{HTTP:Upgrade} !=websocket [NC]
+  RewriteRule /(.*)           http://raspberrypi:8123/$1 [P,L]
 </Virtualhost>
 ```
-
+Afterwards the script presents the option to auto-generate valid ssl certificates and adjust the configuration using certbot-auto.
+For this to work, certbot-auto needs to be preinstalled from here: https://certbot.eff.org/
