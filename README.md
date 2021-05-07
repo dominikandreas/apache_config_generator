@@ -29,15 +29,15 @@ and run main.py to generate /etc/apache2/sites-enabled/ha.conf:
 
 ```conf
 <Virtualhost *:80>
-    ServerName ha.mydomain.de
+    ServerName home.mydomain.de
 
     RewriteEngine On
-    RewriteCond %{SERVER_NAME} =ha.mydomain.de
+    RewriteCond %{SERVER_NAME} =home.mydomain.de
     RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]
 
 </Virtualhost>
 <Virtualhost *:443>
-    ServerName ha.mydomain.de
+    ServerName home.mydomain.de
     RewriteEngine On
 
   RewriteCond %{HTTP:Upgrade} =websocket [NC]
