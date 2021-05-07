@@ -42,7 +42,11 @@ template = Template("""\
 {%- if https_redirect %}
 <Virtualhost *:{{ local_https_port }}>
     ServerName {{ subdomain }}.{{ host }} 
+    RewriteEngine On
     """ + forward_cmd + """ 
+SSLCertificateFile /etc/letsencrypt/live/{{ subdomain }}.{{ host }}/fullchain.pem
+SSLCertificateKeyFile /etc/letsencrypt/live/{{ subdomain }}.{{ host }}/privkey.pem
+Include /etc/letsencrypt/options-ssl-apache.conf
 </Virtualhost>
 {%- endif %}    
 
@@ -70,7 +74,9 @@ def render_template(name, variables):
 
 
 def render_templates(config):
-    defaults = config["defaults"]
+    defaults = config.pop("defaults")
+    for name, props in config.items():
+        props["host"] = props.get("host", defaults["host"])
     for name, variables in config.items():
         if name == "defaults":
             continue
@@ -86,9 +92,13 @@ def render_templates(config):
         print("Writing config %s" % path.lower().strip())
         with open(path, "w") as f:
             f.write(result)
-        if input("Run certbot-auto -d %s.%s to register ssl certificate? ([y]/n)" % (name, vars_local["host"])).lower().strip() != "y":
-            os.system("certbot-auto -d %s.%s" % (name, vars_local["host"]))
+    print(f"""you should execute \n
 
+for domain in {" ".join([f"{name}.{props['host']}" for name, props in config.items()])}
+do 
+  certbot certonly --standalone -d $domain
+done
+""")
 
 if __name__ == "__main__":
     if not os.path.isdir(os.path.dirname(config_path)):
